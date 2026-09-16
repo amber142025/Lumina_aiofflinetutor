@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+lumina_dev.db
+.dart_tool/
+build/
+.gradle/
+.idea/
+.vscode/
+*.log
