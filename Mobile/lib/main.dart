@@ -41,7 +41,7 @@ class _RegisterPageState extends State<RegisterPage>{
    TextField(controller:n,decoration:const InputDecoration(labelText:"Full name")),const SizedBox(height:12),
    TextField(controller:u,decoration:const InputDecoration(labelText:"Username")),const SizedBox(height:12),
    TextField(controller:e,decoration:const InputDecoration(labelText:"Email")),const SizedBox(height:12),
-   DropdownButtonFormField(value:role,items:["student","teacher","parent","manager","content_manager"].map((x)=>DropdownMenuItem(value:x,child:Text(x))).toList(),onChanged:(x)=>setState(()=>role=x!),decoration:const InputDecoration(labelText:"Account type")),const SizedBox(height:12),
+   DropdownButtonFormField(initialValue:role,items:["student","teacher","parent","manager","content_manager"].map((x)=>DropdownMenuItem(value:x,child:Text(x))).toList(),onChanged:(x)=>setState(()=>role=x!),decoration:const InputDecoration(labelText:"Account type")),const SizedBox(height:12),
    if(role!="student")TextField(controller:code,decoration:const InputDecoration(labelText:"Organization / Invitation code")),const SizedBox(height:12),
    TextField(controller:p,obscureText:hide,decoration:InputDecoration(labelText:"Password",suffixIcon:IconButton(icon:Icon(Icons.visibility),onPressed:()=>setState(()=>hide=!hide)))),const SizedBox(height:8),
    const Text("Minimum 8 characters • uppercase • lowercase • number • special character",style:TextStyle(color:Colors.white60)),const SizedBox(height:12),
