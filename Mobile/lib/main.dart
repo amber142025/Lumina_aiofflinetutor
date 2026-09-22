@@ -328,7 +328,7 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: role,
+            initialValue: role,
             items: const [
               DropdownMenuItem(
                 value: 'student',

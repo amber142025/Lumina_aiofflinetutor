@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/main.dart';
+import 'package:lumina/main.dart';
 
 void main() {
   testWidgets('Lumina app starts', (WidgetTester tester) async {
