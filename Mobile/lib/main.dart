@@ -1669,7 +1669,9 @@ class _RoleWorkspaceState extends State<RoleWorkspace> {
       } else {
         endpoint = '/api/v1/management/schedule';
       }
-      records = await api.getList(endpoint);
+      records = (await api.getList(endpoint))
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
     } catch (e) {
       error = 'Could not load live workspace data. Check your connection and role permissions, then retry.';
       records = [];
