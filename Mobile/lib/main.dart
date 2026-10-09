@@ -855,8 +855,9 @@ class Explore extends StatefulWidget {
 }
 
 class _ExploreState extends State<Explore> {
-  List<Course> courses = [];
-  bool offline = false;
+  List<Course> courses = List<Course>.from(_luminaStarterCourses);
+  bool offline = true;
+  bool loading = false;
 
   @override
   void initState() {
@@ -865,30 +866,44 @@ class _ExploreState extends State<Explore> {
   }
 
   Future<void> load() async {
+    if (loading) return;
+    setState(() => loading = true);
     try {
-      final xs = await api.getList(
-        '/api/v1/learning/courses',
-      );
+      final xs = await api.getList('/api/v1/learning/courses');
+      final remote = xs.map((e) => Course.fromJson(
+        Map<String, dynamic>.from(e as Map),
+      )).toList();
 
-      courses = xs
-          .map((e) => Course.fromJson(e))
-          .toList();
-
-      await LocalStore.instance.cacheCourses(
-        xs.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
-      );
-      if (courses.isEmpty) {
-        courses = _luminaStarterCourses;
+      if (remote.isNotEmpty) {
+        courses = remote;
+        offline = false;
+        try {
+          await LocalStore.instance.cacheCourses(
+            xs.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+          );
+        } catch (_) {
+          // Keep server courses visible even if local caching fails.
+        }
+      } else {
+        // An empty backend response should never leave learners with a blank page.
+        courses = List<Course>.from(_luminaStarterCourses);
+        offline = true;
       }
     } catch (_) {
-      final cached = await LocalStore.instance.courses();
-      courses = cached.map((e) => Course.fromJson(e)).toList();
+      try {
+        final cached = await LocalStore.instance.courses();
+        final saved = cached.map((e) => Course.fromJson(
+          Map<String, dynamic>.from(e as Map),
+        )).toList();
+        courses = saved.isNotEmpty
+            ? saved
+            : List<Course>.from(_luminaStarterCourses);
+      } catch (_) {
+        courses = List<Course>.from(_luminaStarterCourses);
+      }
       offline = true;
-      if (courses.isEmpty) courses = _luminaStarterCourses;
-    }
-
-    if (mounted) {
-      setState(() {});
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
   }
 
@@ -902,16 +917,10 @@ class _ExploreState extends State<Explore> {
             const Expanded(
               child: Text(
                 'Explore Learning',
-                style: TextStyle(
-                  fontSize: 25,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
               ),
             ),
-            if (offline)
-              const Chip(
-                label: Text('OFFLINE'),
-              ),
+            if (offline) const Chip(label: Text('OFFLINE / DEMO')),
           ],
         ),
         const SizedBox(height: 14),
@@ -922,48 +931,49 @@ class _ExploreState extends State<Explore> {
               children: [
                 const Icon(Icons.local_fire_department, size: 32, color: Color(0xFFFFC857)),
                 const SizedBox(width: 12),
-                const Expanded(child: Text('Small steps, real progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-                TextButton(onPressed: load, child: const Text('Refresh')),
+                const Expanded(
+                  child: Text('Small steps, real progress',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+                TextButton(
+                  onPressed: loading ? null : load,
+                  child: Text(loading ? 'Loading…' : 'Refresh'),
+                ),
               ],
             ),
           ),
         ),
         const SizedBox(height: 8),
-        if (offline)
-          const Text('Showing saved learning content where available.', style: TextStyle(color: Colors.white60)),
-        if (courses.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(20),
-            child: Center(child: Text('Could not load courses. Check the backend and tap Refresh.')),
-          ),
-        ...courses.map(
-          (x) => Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                child: Icon(
-                  Icons.menu_book,
-                ),
+        Text(
+          offline
+              ? 'Starter lessons are available now. Connect the backend to load your school courses.'
+              : 'Choose a course and learn something useful today.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        const SizedBox(height: 8),
+        ...courses.map((x) => Card(
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: const Color(0xFF5146A5),
+              child: Icon(x.id < 0 ? Icons.auto_awesome : Icons.menu_book),
+            ),
+            title: Text(x.title),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('${x.level}\n${x.description}'),
+            ),
+            isThreeLine: true,
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => x.id < 0
+                    ? DemoCoursePage(course: x)
+                    : CoursePage(course: x),
               ),
-              title: Text(
-                x.title,
-              ),
-              subtitle: Text(
-                '${x.level}\n${x.description}',
-              ),
-              isThreeLine: true,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => x.id < 0
-                        ? DemoCoursePage(course: x)
-                        : CoursePage(course: x),
-                  ),
-                );
-              },
             ),
           ),
-        ),
+        )),
       ],
     );
   }
