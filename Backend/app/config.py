@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
     ai_provider: str = "none"
     ai_api_key: str = ""
-    ai_model: str = "gpt-4.1-mini"
+    ai_model: str = "gpt-6-luna"
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @field_validator("app_env")
