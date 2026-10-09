@@ -27,7 +27,7 @@ services:
       - key: AI_API_KEY
         sync: false
       - key: AI_MODEL
-        value: gpt-4.1-mini
+        value: gpt-6-luna
 
 databases:
   - name: lumina-db
