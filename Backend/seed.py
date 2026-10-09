@@ -1,9 +1,11 @@
 """Development-only sample-data loader. Never use against a production database."""
 import os
 
-if os.getenv("APP_ENV", "development").strip().lower() == "production":
+environment = os.getenv("APP_ENV", "development").strip().lower()
+database_url = os.getenv("DATABASE_URL", "sqlite:///./lumina_dev.db").strip().lower()
+if environment in {"production", "staging"} or not database_url.startswith("sqlite"):
     raise SystemExit(
-        "Refusing to seed production: this script creates known demo accounts, passwords, "
+        "Refusing to seed a non-local database: this script creates known demo accounts, passwords, "
         "invitation codes, and sample content. Provision production data through a reviewed process."
     )
 
