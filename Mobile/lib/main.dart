@@ -472,18 +472,31 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      Dashboard(
-        session: widget.session,
-        tutor: tutor,
-      ),
-      const Explore(),
-      const ProgressPage(),
-      const DownloadsPage(),
-      ProfilePage(
-        session: widget.session,
-      ),
-    ];
+    final role = widget.session.roles.isEmpty ? 'student' : widget.session.roles.first;
+    final pages = role == 'student'
+        ? <Widget>[
+            Dashboard(session: widget.session, tutor: tutor),
+            const Explore(),
+            const ProgressPage(),
+            const DownloadsPage(),
+            ProfilePage(session: widget.session),
+          ]
+        : <Widget>[
+            RoleWorkspace(session: widget.session, role: role),
+            ProfilePage(session: widget.session),
+          ];
+    final destinations = role == 'student'
+        ? const <NavigationDestination>[
+            NavigationDestination(icon: Icon(Icons.auto_awesome), label: 'Today'),
+            NavigationDestination(icon: Icon(Icons.explore_outlined), label: 'Explore'),
+            NavigationDestination(icon: Icon(Icons.insights_outlined), label: 'Progress'),
+            NavigationDestination(icon: Icon(Icons.download_outlined), label: 'Downloads'),
+            NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+          ]
+        : const <NavigationDestination>[
+            NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Workspace'),
+            NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+          ];
 
     return Scaffold(
       appBar: AppBar(
@@ -506,38 +519,7 @@ class _HomeState extends State<Home> {
             tab = i;
           });
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(
-              Icons.auto_awesome,
-            ),
-            label: 'Today',
-          ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.explore_outlined,
-            ),
-            label: 'Explore',
-          ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.insights_outlined,
-            ),
-            label: 'Progress',
-          ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.download_outlined,
-            ),
-            label: 'Downloads',
-          ),
-          NavigationDestination(
-            icon: Icon(
-              Icons.person_outline,
-            ),
-            label: 'Profile',
-          ),
-        ],
+        destinations: destinations,
       ),
     );
   }
@@ -1625,4 +1607,191 @@ class ProfilePage extends StatelessWidget {
       ],
     );
   }
+}
+
+
+// ============================================================
+// ROLE-SPECIFIC WORKSPACES
+// ============================================================
+
+class RoleWorkspace extends StatefulWidget {
+  final UserSession session;
+  final String role;
+  const RoleWorkspace({super.key, required this.session, required this.role});
+
+  @override
+  State<RoleWorkspace> createState() => _RoleWorkspaceState();
+}
+
+class _RoleWorkspaceState extends State<RoleWorkspace> {
+  bool loading = true;
+  String? error;
+  List<Map<String, dynamic>> records = [];
+
+  String get title {
+    switch (widget.role) {
+      case 'teacher': return 'Teacher Workspace';
+      case 'parent': return 'Parent Centre';
+      case 'manager': return 'Management Overview';
+      case 'content_manager': return 'Content Studio';
+      case 'admin': return 'Administration';
+      default: return 'Learning Workspace';
+    }
+  }
+
+  String get description {
+    switch (widget.role) {
+      case 'teacher': return 'Manage your teaching workload and assignments.';
+      case 'parent': return 'Review learning activity and keep study routines visible.';
+      case 'manager': return 'Review platform users and operational activity.';
+      case 'content_manager': return 'Review learning courses and publishing inventory.';
+      case 'admin': return 'Review users and oversee access to the platform.';
+      default: return 'Your role-based Lumina workspace.';
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    setState(() { loading = true; error = null; });
+    try {
+      String endpoint;
+      if (widget.role == 'teacher') {
+        endpoint = '/api/v1/management/teacher/assignments';
+      } else if (widget.role == 'manager' || widget.role == 'admin') {
+        endpoint = '/api/v1/management/users';
+      } else if (widget.role == 'content_manager') {
+        endpoint = '/api/v1/management/courses';
+      } else {
+        endpoint = '/api/v1/management/schedule';
+      }
+      records = await api.getList(endpoint);
+    } catch (e) {
+      error = 'Could not load live workspace data. Check your connection and role permissions, then retry.';
+      records = [];
+    } finally {
+      if (mounted) setState(() { loading = false; });
+    }
+  }
+
+  IconData get roleIcon {
+    switch (widget.role) {
+      case 'teacher': return Icons.cast_for_education;
+      case 'parent': return Icons.family_restroom;
+      case 'manager': return Icons.analytics_outlined;
+      case 'content_manager': return Icons.library_books_outlined;
+      case 'admin': return Icons.admin_panel_settings_outlined;
+      default: return Icons.dashboard_outlined;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: load,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF27264F), Color(0xFF151D32)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(roleIcon, size: 34, color: const Color(0xFFC9BEFF)),
+                const SizedBox(height: 18),
+                Text(title, style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                Text('Welcome, ${widget.session.displayName}', style: const TextStyle(color: Colors.white70)),
+                const SizedBox(height: 8),
+                Text(description, style: const TextStyle(color: Colors.white70)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          if (widget.role == 'teacher') ...[
+            const _WorkspaceFeature(icon: Icons.assignment_outlined, title: 'Assignments', body: 'Review assignments associated with your teacher account.'),
+            const _WorkspaceFeature(icon: Icons.groups_outlined, title: 'Classroom workflow', body: 'Use the live list below to review your current teaching assignments.'),
+          ] else if (widget.role == 'parent') ...[
+            const _WorkspaceFeature(icon: Icons.child_care_outlined, title: 'Family learning', body: 'Check your available schedule and learning reminders. Child-linking and family reports require an assigned child relationship.'),
+            const _WorkspaceFeature(icon: Icons.event_outlined, title: 'Study routine', body: 'Keep study sessions visible and review upcoming activities.'),
+          ] else if (widget.role == 'manager') ...[
+            const _WorkspaceFeature(icon: Icons.people_outline, title: 'User oversight', body: 'Review registered platform accounts available to your manager role.'),
+            const _WorkspaceFeature(icon: Icons.insights_outlined, title: 'Operational visibility', body: 'Refresh the list to view current account records from the backend.'),
+          ] else if (widget.role == 'content_manager') ...[
+            const _WorkspaceFeature(icon: Icons.menu_book_outlined, title: 'Course catalogue', body: 'Review course records available for content operations.'),
+            const _WorkspaceFeature(icon: Icons.publish_outlined, title: 'Publishing workflow', body: 'Course creation and publishing controls are not exposed by the current API yet.'),
+          ] else if (widget.role == 'admin') ...[
+            const _WorkspaceFeature(icon: Icons.manage_accounts_outlined, title: 'Account administration', body: 'Review user accounts returned by the protected management API.'),
+            const _WorkspaceFeature(icon: Icons.shield_outlined, title: 'Access control', body: 'Role and permission editing require dedicated API endpoints and are not represented as completed here.'),
+          ],
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: Text(widget.role == 'teacher' ? 'My assignments' : widget.role == 'parent' ? 'My schedule' : widget.role == 'content_manager' ? 'Course inventory' : 'User records', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold))),
+              IconButton(onPressed: loading ? null : load, icon: const Icon(Icons.refresh), tooltip: 'Refresh'),
+            ],
+          ),
+          if (loading) const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+          else if (error != null) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(error!), const SizedBox(height: 8), TextButton.icon(onPressed: load, icon: const Icon(Icons.refresh), label: const Text('Try again'))])))
+          else if (records.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(18), child: Text('No records available yet. This is an empty state, not a system error.')))
+          else ...records.map((item) {
+            final name = (item['display_name'] ?? item['title'] ?? item['name'] ?? item['event_type'] ?? 'Record').toString();
+            final detail = widget.role == 'manager' || widget.role == 'admin'
+                ? '${item['email'] ?? ''}  •  ${item['active'] == false ? 'Inactive' : 'Account'}'
+                : widget.role == 'teacher'
+                    ? (item['description'] ?? 'Assignment').toString()
+                    : widget.role == 'content_manager'
+                        ? 'Course ID: ${item['id'] ?? ''}'
+                        : '${item['start_at'] ?? ''}';
+            return Card(
+              child: ListTile(
+                leading: CircleAvatar(child: Icon(widget.role == 'teacher' ? Icons.assignment_outlined : widget.role == 'content_manager' ? Icons.menu_book_outlined : widget.role == 'parent' ? Icons.event_outlined : Icons.person_outline)),
+                title: Text(name),
+                subtitle: detail.trim().isEmpty ? null : Text(detail),
+                trailing: widget.role == 'manager' || widget.role == 'admin' ? Icon(item['active'] == false ? Icons.block : Icons.check_circle_outline) : null,
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkspaceFeature extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+  const _WorkspaceFeature({required this.icon, required this.title, required this.body});
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 28, color: const Color(0xFFC9BEFF)),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 5),
+            Text(body, style: const TextStyle(color: Colors.white70)),
+          ])),
+        ],
+      ),
+    ),
+  );
 }
