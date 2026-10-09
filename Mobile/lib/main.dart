@@ -689,6 +689,160 @@ class _FeatureCard extends StatelessWidget {
   }
 }
 
+// Ready-to-use starter learning content keeps Explore useful before the
+// backend has been seeded. Real server courses take priority when available.
+final List<Course> _luminaStarterCourses = [
+  Course(id: -1, subjectId: -1, title: 'Everyday English', level: 'Beginner • 10 min',
+    description: 'Build useful vocabulary, practise simple conversations, and check your understanding.'),
+  Course(id: -2, subjectId: -2, title: 'Digital Skills & Online Safety', level: 'All levels • 8 min',
+    description: 'Learn strong passwords, phishing awareness, and safer everyday technology habits.'),
+  Course(id: -3, subjectId: -3, title: 'Study Smarter', level: 'All levels • 7 min',
+    description: 'Use active recall, short study sessions, and spaced repetition to remember more.'),
+];
+
+class DemoCoursePage extends StatelessWidget {
+  final Course course;
+  const DemoCoursePage({required this.course, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final lessons = course.id == -1
+        ? <Map<String, String>>[
+            {'title': 'Introduce yourself', 'body': 'A useful introduction is short and clear. Try: “Hello, my name is Alex. I am learning English. Nice to meet you.” Say it aloud, then replace Alex with your own name.'},
+            {'title': 'Everyday phrases', 'body': 'Practise these phrases: “Could you help me, please?”, “I do not understand yet”, and “Could you say that again?” Repeat each phrase three times and use one in a sentence.'},
+          ]
+        : course.id == -2
+        ? <Map<String, String>>[
+            {'title': 'Spot a phishing message', 'body': 'Phishing messages pressure you to act quickly, ask for passwords, or send you to unfamiliar links. Check the sender and website address. Never share a one-time verification code.'},
+            {'title': 'Create a stronger password', 'body': 'Use a long, unique passphrase for each account. A password manager can help. Turn on multi-factor authentication and never reuse your school password on other websites.'},
+          ]
+        : <Map<String, String>>[
+            {'title': 'Active recall', 'body': 'Close your notes and write down everything you remember. Then check your notes and correct gaps. Trying to retrieve an answer strengthens learning more than rereading alone.'},
+            {'title': 'Spaced practice', 'body': 'Review a topic after one day, three days, and one week. Short sessions spread over time usually help you remember longer than one long cram session.'},
+          ];
+    return Scaffold(
+      appBar: AppBar(title: Text(course.title)),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF5146A5), Color(0xFF176B78)]),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.auto_awesome, size: 34),
+              const SizedBox(height: 12),
+              Text(course.level, style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(course.description),
+              const SizedBox(height: 12),
+              const Text('Learn • Practise • Remember', style: TextStyle(fontWeight: FontWeight.bold)),
+            ]),
+          ),
+          const SizedBox(height: 18),
+          const Text('Your learning path', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          ...lessons.asMap().entries.map((entry) => Card(
+            child: ListTile(
+              leading: CircleAvatar(child: Text('${entry.key + 1}')),
+              title: Text(entry.value['title']!),
+              subtitle: const Text('Read, think, and try it yourself'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(context, MaterialPageRoute(
+                builder: (_) => StarterLessonPage(
+                  courseTitle: course.title,
+                  lessonTitle: entry.value['title']!,
+                  body: entry.value['body']!,
+                  quizQuestion: course.id == -1
+                    ? 'Which phrase politely asks someone to repeat?'
+                    : course.id == -2
+                    ? 'What should you do with an unexpected login link?'
+                    : 'What is active recall?',
+                  choices: course.id == -1
+                    ? ['Could you say that again?', 'Go away.', 'I will never ask.']
+                    : course.id == -2
+                    ? ['Click quickly', 'Check the sender and link first', 'Share your password']
+                    : ['Reread only', 'Close notes and recall from memory', 'Study once only'],
+                  correct: 0 == 1 ? 0 : (course.id == -1 ? 0 : 1),
+                ),
+              )),
+            ),
+          )),
+          const SizedBox(height: 8),
+          const Text('This starter course works without a connection. Your server-provided courses appear here when available.', style: TextStyle(color: Colors.white60)),
+        ],
+      ),
+    );
+  }
+}
+
+class StarterLessonPage extends StatefulWidget {
+  final String courseTitle, lessonTitle, body, quizQuestion;
+  final List<String> choices;
+  final int correct;
+  const StarterLessonPage({required this.courseTitle, required this.lessonTitle,
+    required this.body, required this.quizQuestion, required this.choices,
+    required this.correct, super.key});
+
+  @override
+  State<StarterLessonPage> createState() => _StarterLessonPageState();
+}
+
+class _StarterLessonPageState extends State<StarterLessonPage> {
+  int? selected;
+  bool checked = false;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(widget.lessonTitle)),
+    body: ListView(padding: const EdgeInsets.all(20), children: [
+      const Row(children: [
+        Icon(Icons.menu_book, color: Color(0xFFB7A9FF)),
+        SizedBox(width: 8),
+        Text('MICRO LESSON', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+      ]),
+      const SizedBox(height: 18),
+      Text(widget.lessonTitle, style: const TextStyle(fontSize: 27, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 14),
+      Card(child: Padding(padding: const EdgeInsets.all(18), child: Text(widget.body, style: const TextStyle(fontSize: 17, height: 1.55)))),
+      const SizedBox(height: 24),
+      const Text('Quick knowledge check', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      Text(widget.quizQuestion, style: const TextStyle(fontSize: 16)),
+      const SizedBox(height: 10),
+      ...widget.choices.asMap().entries.map((e) => Card(
+        child: RadioListTile<int>(
+          value: e.key, groupValue: selected,
+          title: Text(e.value),
+          onChanged: checked ? null : (v) => setState(() => selected = v),
+        ),
+      )),
+      const SizedBox(height: 12),
+      FilledButton.icon(
+        onPressed: selected == null || checked ? null : () => setState(() => checked = true),
+        icon: const Icon(Icons.check_circle_outline),
+        label: const Text('Check my answer'),
+      ),
+      if (checked) Card(
+        color: selected == widget.correct ? const Color(0xFF174B3D) : const Color(0xFF512D36),
+        child: Padding(padding: const EdgeInsets.all(16), child: Text(
+          selected == widget.correct
+            ? 'Correct! Great work. Explain in your own words why this answer is useful.'
+            : 'Not quite. Review the lesson and try to explain the safer or more effective choice.',
+          style: const TextStyle(fontSize: 16),
+        )),
+      ),
+      if (checked) OutlinedButton.icon(
+        onPressed: () => Navigator.pop(context),
+        icon: const Icon(Icons.arrow_back),
+        label: const Text('Back to learning path'),
+      ),
+    ]),
+  );
+}
+
 // ============================================================
 // EXPLORE
 // ============================================================
@@ -717,24 +871,20 @@ class _ExploreState extends State<Explore> {
       );
 
       courses = xs
-          .map(
-            (e) => Course.fromJson(e),
-          )
+          .map((e) => Course.fromJson(e))
           .toList();
 
       await LocalStore.instance.cacheCourses(
-        xs.cast<Map<String, dynamic>>(),
+        xs.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
       );
+      if (courses.isEmpty) {
+        courses = _luminaStarterCourses;
+      }
     } catch (_) {
-      final xs = await LocalStore.instance.courses();
-
-      courses = xs
-          .map(
-            (e) => Course.fromJson(e),
-          )
-          .toList();
-
+      final cached = await LocalStore.instance.courses();
+      courses = cached.map((e) => Course.fromJson(e)).toList();
       offline = true;
+      if (courses.isEmpty) courses = _luminaStarterCourses;
     }
 
     if (mounted) {
@@ -765,14 +915,26 @@ class _ExploreState extends State<Explore> {
           ],
         ),
         const SizedBox(height: 14),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(Icons.local_fire_department, size: 32, color: Color(0xFFFFC857)),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('Small steps, real progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                TextButton(onPressed: load, child: const Text('Refresh')),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (offline)
+          const Text('Showing saved learning content where available.', style: TextStyle(color: Colors.white60)),
         if (courses.isEmpty)
           const Padding(
             padding: EdgeInsets.all(20),
-            child: Center(
-              child: Text(
-                'No courses available yet.',
-              ),
-            ),
+            child: Center(child: Text('Could not load courses. Check the backend and tap Refresh.')),
           ),
         ...courses.map(
           (x) => Card(
@@ -793,9 +955,9 @@ class _ExploreState extends State<Explore> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => CoursePage(
-                      course: x,
-                    ),
+                    builder: (_) => x.id < 0
+                        ? DemoCoursePage(course: x)
+                        : CoursePage(course: x),
                   ),
                 );
               },
