@@ -1,3 +1,12 @@
+"""Development-only sample-data loader. Never use against a production database."""
+import os
+
+if os.getenv("APP_ENV", "development").strip().lower() == "production":
+    raise SystemExit(
+        "Refusing to seed production: this script creates known demo accounts, passwords, "
+        "invitation codes, and sample content. Provision production data through a reviewed process."
+    )
+
 from app.db import Base,engine,SessionLocal
 from app.models.models import *
 from app.security import hash_password
