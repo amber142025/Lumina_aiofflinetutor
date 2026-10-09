@@ -50,7 +50,6 @@ Student: student@lumina.app / Lumina@123
 Teacher: teacher@lumina.app / Lumina@123
 Parent: parent@lumina.app / Lumina@123
 Manager: manager@lumina.app / Lumina@123
-Content Manager: content@lumina.app / Lumina@123
 Admin: admin@lumina.app / Lumina@123
 
 IMPORTANT
