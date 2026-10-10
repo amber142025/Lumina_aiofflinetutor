@@ -1,16 +1,61 @@
+import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 import uuid
 from ..db import get_db
-from ..models.models import User,Role,UserRole,Invitation,RefreshToken,AuditLog
-from ..schemas import RegisterIn,LoginIn,RefreshIn
+from ..models.models import User,Role,UserRole,Invitation,RefreshToken,AuditLog,UserSettings
+from ..schemas import RegisterIn,LoginIn,RefreshIn,SettingsUpdateIn
 from ..security import *
 from ..deps import roles_for, permissions_for, current_user
 
 router=APIRouter(prefix="/api/v1/auth",tags=["auth"])
 PUBLIC_ROLES={"student"}
 INVITE_ROLES={"teacher","parent","manager","content_manager"}
+ROLE_SETTING_KEYS={
+    "teacher":"assignment_updates",
+    "parent":"learner_progress_updates",
+    "manager":"platform_activity_updates",
+    "content_manager":"course_review_updates",
+    "admin":"security_updates",
+    "student":"study_reminder_updates",
+}
+
+def settings_payload(user,db):
+    row=db.query(UserSettings).filter_by(user_id=user.id).first()
+    role_settings=json.loads(row.role_notifications_json or "{}") if row else {}
+    roles=roles_for(user,db)
+    visible={ROLE_SETTING_KEYS[r]:role_settings.get(ROLE_SETTING_KEYS[r],True)
+             for r in roles if r in ROLE_SETTING_KEYS}
+    return {"weekly_summary":row.weekly_summary if row else True,
+            "study_reminders":row.study_reminders if row else True,
+            "role_notifications":visible}
+
+@router.get("/settings")
+def get_settings(db:Session=Depends(get_db),user=Depends(current_user)):
+    return settings_payload(user,db)
+
+@router.put("/settings")
+def update_settings(x:SettingsUpdateIn,db:Session=Depends(get_db),user=Depends(current_user)):
+    row=db.query(UserSettings).filter_by(user_id=user.id).first()
+    if not row:
+        row=UserSettings(user_id=user.id)
+        db.add(row)
+    values=x.model_dump(exclude_unset=True)
+    for name in ("weekly_summary","study_reminders"):
+        if name in values:
+            setattr(row,name,values[name])
+    if "role_notifications" in values:
+        roles=roles_for(user,db)
+        allowed={ROLE_SETTING_KEYS[r] for r in roles if r in ROLE_SETTING_KEYS}
+        updates=values["role_notifications"]
+        if not set(updates).issubset(allowed):
+            raise HTTPException(422,"A role notification setting is not available for this account")
+        current=json.loads(row.role_notifications_json or "{}")
+        current.update(updates)
+        row.role_notifications_json=json.dumps(current)
+    db.commit()
+    return settings_payload(user,db)
 
 @router.post("/register")
 def register(x:RegisterIn,db:Session=Depends(get_db)):

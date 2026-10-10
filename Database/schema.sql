@@ -19,3 +19,18 @@ CREATE TABLE questions (id SERIAL PRIMARY KEY, quiz_id INT REFERENCES quizzes(id
 CREATE TABLE lesson_progress (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id), lesson_id INT REFERENCES lessons(id), progress DOUBLE PRECISION,
 completed BOOLEAN DEFAULT FALSE, last_position INT DEFAULT 0, updated_at TIMESTAMP, UNIQUE(user_id,lesson_id));
 CREATE TABLE mastery (id SERIAL PRIMARY KEY, user_id INT REFERENCES users(id), topic VARCHAR(160), score DOUBLE PRECISION, attempts INT, updated_at TIMESTAMP);
+CREATE TABLE course_enrollments (id SERIAL PRIMARY KEY, user_id INT NOT NULL REFERENCES users(id),
+course_id INT NOT NULL REFERENCES courses(id), enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+UNIQUE(user_id, course_id));
+CREATE TABLE assignments (id SERIAL PRIMARY KEY, teacher_id INT NOT NULL REFERENCES users(id),
+title VARCHAR(200) NOT NULL, description TEXT NOT NULL, due_at TIMESTAMP NULL);
+CREATE TABLE assignment_courses (id SERIAL PRIMARY KEY, assignment_id INT UNIQUE NOT NULL REFERENCES assignments(id),
+course_id INT NOT NULL REFERENCES courses(id));
+CREATE TABLE assignment_submissions (id SERIAL PRIMARY KEY, assignment_id INT NOT NULL REFERENCES assignments(id),
+user_id INT NOT NULL REFERENCES users(id), response TEXT NOT NULL, submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+grade DOUBLE PRECISION NULL, feedback TEXT NOT NULL DEFAULT '', UNIQUE(assignment_id, user_id));
+CREATE TABLE user_settings (id SERIAL PRIMARY KEY, user_id INT UNIQUE NOT NULL REFERENCES users(id),
+weekly_summary BOOLEAN NOT NULL DEFAULT TRUE, study_reminders BOOLEAN NOT NULL DEFAULT TRUE,
+role_notifications_json TEXT NOT NULL DEFAULT '{}');
+CREATE TABLE parent_child (id SERIAL PRIMARY KEY, parent_id INT NOT NULL REFERENCES users(id),
+child_id INT NOT NULL REFERENCES users(id), UNIQUE(parent_id, child_id));

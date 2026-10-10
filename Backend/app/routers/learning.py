@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import and_, desc
 from datetime import datetime
 import json
 from ..db import get_db
 from ..models.models import *
-from ..schemas import ProgressIn,QuizSubmitIn
-from ..deps import current_user
+from ..schemas import ProgressIn,QuizSubmitIn,AssignmentSubmissionIn
+from ..deps import current_user,require_roles
 
 router=APIRouter(prefix="/api/v1/learning",tags=["learning"])
 
@@ -17,6 +17,62 @@ def subjects(db=Depends(get_db),user=Depends(current_user)):
 @router.get("/courses")
 def courses(db=Depends(get_db),user=Depends(current_user)):
     return [{"id":x.id,"subject_id":x.subject_id,"title":x.title,"level":x.level,"description":x.description,"published":x.published} for x in db.query(Course).filter(Course.published==True).all()]
+
+@router.post("/courses/{course_id}/enroll",status_code=201)
+def enroll(course_id:int,db=Depends(get_db),user=Depends(require_roles("student"))):
+    course=db.query(Course).filter_by(id=course_id,published=True).first()
+    if not course: raise HTTPException(404,"Published course not found")
+    row=db.query(CourseEnrollment).filter_by(user_id=user.id,course_id=course.id).first()
+    if not row:
+        row=CourseEnrollment(user_id=user.id,course_id=course.id)
+        db.add(row)
+        db.commit()
+    return {"course_id":course.id,"enrolled":True,"enrolled_at":row.enrolled_at.isoformat()}
+
+@router.get("/enrollments")
+def enrollments(db=Depends(get_db),user=Depends(current_user)):
+    return [{"course_id":c.id,"title":c.title} for c in db.query(Course).join(
+        CourseEnrollment,CourseEnrollment.course_id==Course.id
+    ).filter(CourseEnrollment.user_id==user.id).order_by(Course.title).all()]
+
+@router.get("/assignments")
+def student_assignments(db=Depends(get_db),user=Depends(require_roles("student"))):
+    rows=db.query(Assignment,Course,AssignmentSubmission).join(
+        AssignmentCourse,AssignmentCourse.assignment_id==Assignment.id
+    ).join(Course,Course.id==AssignmentCourse.course_id).join(
+        CourseEnrollment,CourseEnrollment.course_id==Course.id
+    ).outerjoin(AssignmentSubmission,and_(
+        AssignmentSubmission.assignment_id==Assignment.id,
+        AssignmentSubmission.user_id==user.id
+    )).filter(CourseEnrollment.user_id==user.id).order_by(Assignment.due_at,Assignment.id).all()
+    return [{
+        "id":a.id,"course_id":c.id,"course_title":c.title,"title":a.title,
+        "description":a.description,"due_at":a.due_at.isoformat() if a.due_at else None,
+        "submission":None if s is None else {
+            "id":s.id,"response":s.response,"submitted_at":s.submitted_at.isoformat(),
+            "grade":s.grade,"feedback":s.feedback
+        }
+    } for a,c,s in rows]
+
+@router.post("/assignments/{assignment_id}/submit")
+def submit_assignment(assignment_id:int,x:AssignmentSubmissionIn,db=Depends(get_db),user=Depends(require_roles("student"))):
+    assignment=db.query(Assignment).join(
+        AssignmentCourse,AssignmentCourse.assignment_id==Assignment.id
+    ).join(CourseEnrollment,CourseEnrollment.course_id==AssignmentCourse.course_id).filter(
+        Assignment.id==assignment_id,CourseEnrollment.user_id==user.id
+    ).first()
+    if not assignment: raise HTTPException(404,"Assignment not found for an enrolled course")
+    row=db.query(AssignmentSubmission).filter_by(assignment_id=assignment.id,user_id=user.id).first()
+    if row:
+        row.response=x.response.strip()
+        row.submitted_at=datetime.utcnow()
+        row.grade=None
+        row.feedback=""
+    else:
+        row=AssignmentSubmission(assignment_id=assignment.id,user_id=user.id,response=x.response.strip())
+        db.add(row)
+    db.commit()
+    return {"id":row.id,"submitted_at":row.submitted_at.isoformat(),"grade":row.grade,"feedback":row.feedback}
 
 @router.get("/courses/{course_id}/units")
 def units(course_id:int,db=Depends(get_db),user=Depends(current_user)):

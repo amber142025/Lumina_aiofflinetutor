@@ -75,6 +75,14 @@ class Course(Base):
     description: Mapped[str]=mapped_column(Text)
     published: Mapped[bool]=mapped_column(Boolean, default=True)
 
+class CourseEnrollment(Base):
+    __tablename__="course_enrollments"
+    id: Mapped[int]=mapped_column(primary_key=True)
+    user_id: Mapped[int]=mapped_column(ForeignKey("users.id"), index=True)
+    course_id: Mapped[int]=mapped_column(ForeignKey("courses.id"), index=True)
+    enrolled_at: Mapped[datetime]=mapped_column(DateTime, default=datetime.utcnow)
+    __table_args__=(UniqueConstraint("user_id","course_id",name="uq_user_course"),)
+
 class Unit(Base):
     __tablename__="units"
     id: Mapped[int]=mapped_column(primary_key=True)
@@ -153,6 +161,31 @@ class Assignment(Base):
     description: Mapped[str]=mapped_column(Text)
     due_at: Mapped[datetime|None]=mapped_column(DateTime, nullable=True)
 
+class AssignmentCourse(Base):
+    __tablename__="assignment_courses"
+    id: Mapped[int]=mapped_column(primary_key=True)
+    assignment_id: Mapped[int]=mapped_column(ForeignKey("assignments.id"), unique=True)
+    course_id: Mapped[int]=mapped_column(ForeignKey("courses.id"), index=True)
+
+class AssignmentSubmission(Base):
+    __tablename__="assignment_submissions"
+    id: Mapped[int]=mapped_column(primary_key=True)
+    assignment_id: Mapped[int]=mapped_column(ForeignKey("assignments.id"), index=True)
+    user_id: Mapped[int]=mapped_column(ForeignKey("users.id"), index=True)
+    response: Mapped[str]=mapped_column(Text)
+    submitted_at: Mapped[datetime]=mapped_column(DateTime, default=datetime.utcnow)
+    grade: Mapped[float|None]=mapped_column(Float, nullable=True)
+    feedback: Mapped[str]=mapped_column(Text, default="")
+    __table_args__=(UniqueConstraint("assignment_id","user_id",name="uq_assignment_student"),)
+
+class UserSettings(Base):
+    __tablename__="user_settings"
+    id: Mapped[int]=mapped_column(primary_key=True)
+    user_id: Mapped[int]=mapped_column(ForeignKey("users.id"), unique=True, index=True)
+    weekly_summary: Mapped[bool]=mapped_column(Boolean, default=True)
+    study_reminders: Mapped[bool]=mapped_column(Boolean, default=True)
+    role_notifications_json: Mapped[str]=mapped_column(Text, default="{}")
+
 class ScheduleEvent(Base):
     __tablename__="schedule_events"
     id: Mapped[int]=mapped_column(primary_key=True)
@@ -176,6 +209,7 @@ class ParentChild(Base):
     id: Mapped[int]=mapped_column(primary_key=True)
     parent_id: Mapped[int]=mapped_column(ForeignKey("users.id"))
     child_id: Mapped[int]=mapped_column(ForeignKey("users.id"))
+    __table_args__=(UniqueConstraint("parent_id","child_id",name="uq_parent_child"),)
 
 class Message(Base):
     __tablename__="messages"
